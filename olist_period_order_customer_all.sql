@@ -77,21 +77,45 @@ ORDER BY order_completed_year, order_completed_month;
           ,MIN(order_purchase_timestamp) AS first_order_purchase_timestamp
           ,MAX(order_purchase_timestamp) AS latest_order_purchase_timestamp
           ,COUNT(order_id) AS all_order_cnt
-          ,COUNT(purchase_amount) AS all_purchase_amount
-          ,COUNT(avg_review_score) AS all_avg_review_score
-          ,CASE WHEN CAST(MIN(order_purchase_timestamp) AS DATE)
-                     BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) 
-                     AND PARSE_DATE("%Y%m%d", @DS_END_DATE) THEN 1
-                     ELSE 0 END AS first_order_customer
-          ,CASE WHEN CAST(MIN(order_purchase_timestamp) AS DATE)
-                     BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) 
-                     AND PARSE_DATE("%Y%m%d", @DS_END_DATE) THEN 0
-                     ELSE 1 END AS existing_order_customer
+          ,AVG(purchase_amount) AS all_avg_purchase_amount
+          ,AVG(avg_review_score) AS all_avg_review_score
     FROM order_all
-    WHERE CAST(order_purchase_timestamp AS DATE) 
-          BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) 
-          AND PARSE_DATE("%Y%m%d", @DS_END_DATE)
     GROUP BY customer_unique_id
 )
--- SELECT * FROM customer_all WHERE first_order_purchase_timestamp <> latest_order_purchase_timestamp;
-SELECT * FROM customer_all;
+-- SELECT * FROM customer_all;
+
+, period_customer_all1 AS (
+    SELECT customer_unique_id
+          ,COUNT(order_id) AS period_order_cnt
+          ,AVG(purchase_amount) AS period_avg_purchase_amount
+          ,AVG(avg_review_score) AS period_avg_review_score
+          ,MIN(order_purchase_timestamp) AS first_order_purchase_timestamp_in_period
+          ,MAX(order_purchase_timestamp) AS latest_order_purchase_timestamp_in_period
+    FROM order_all
+    WHERE CAST(order_purchase_timestamp AS DATE) <= PARSE_DATE("%Y%m%d", @DS_END_DATE)
+--           BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) 
+--           AND PARSE_DATE("%Y%m%d", @DS_END_DATE)
+    GROUP BY customer_unique_id
+)
+-- SELECT * FROM period_customer_all1;
+
+, period_customer_all2 AS (
+    SELECT pca1.*
+          ,ca.all_order_cnt
+          ,ca.all_avg_purchase_amount
+          ,ca.all_avg_review_score
+          ,CASE WHEN CAST(ca.first_order_purchase_timestamp AS DATE)
+                     < PARSE_DATE("%Y%m%d", @DS_START_DATE)
+                 AND CAST(pca1.latest_order_purchase_timestamp_in_period AS DATE)
+                     BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) 
+                     AND PARSE_DATE("%Y%m%d", @DS_END_DATE) THEN 1
+                     ELSE 0 END AS existing_order_customer
+--           ,CASE WHEN CAST(ca.first_order_purchase_timestamp AS DATE)
+--                      BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) 
+--                      AND PARSE_DATE("%Y%m%d", @DS_END_DATE) THEN 1
+--                      ELSE 0 END AS existing_order_customer
+    FROM period_customer_all1 AS pca1
+    LEFT JOIN customer_all AS ca
+    ON pca1.customer_unique_id = ca.customer_unique_id
+)
+SELECT * FROM period_customer_all2;

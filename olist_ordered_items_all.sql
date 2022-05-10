@@ -86,4 +86,5 @@ WITH order_items1 AS (
 --    LEFT JOIN order_rewiews AS or_
 --    ON oi2.order_id = or_.order_id
 )
-SELECT * FROM ordered_items_all ORDER BY order_id;
+-- SELECT * FROM ordered_items_all ORDER BY order_id;
+SELECT * FROM ordered_items_all;
